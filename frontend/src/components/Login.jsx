@@ -31,15 +31,15 @@ function Login({ onLogin }) {
   };
 
     const passwordPlaceholder = {
-    student: 'Apellido_2 dígitos de tu DNI',
-    professor: 'Apellido_2 dígitos de tu DNI',
+    student: 'Ingresa tu contraseña',
+    professor: 'Ingrese su contraseña',
     admin: 'Contraseña segura asignada'
   };
 
   const identifierPlaceholder = {
     student: 'Ej: 2125000000',
-    professor: 'Ingresa tu DNI',
-    admin: 'Ingresa tu DNI'
+    professor: 'Ingrese su DNI',
+    admin: 'Ingrese su DNI'
   };
 
   const resetFields = (newRole) => {
@@ -61,13 +61,13 @@ function Login({ onLogin }) {
             onChange={(e) => resetFields(e.target.value)}
           >
             <option value="student">Estudiante</option>
-            <option value="professor">Profesor</option>
+            <option value="professor">Docente</option>
             <option value="admin">Administrador</option>
           </select>
         </label>
 
         <label>
-          {role === 'student' ? 'Código de matrícula' : 'DNI'}
+          {role === 'student' ? 'Código' : 'DNI'}
           <input
             className="input"
             type="text"
@@ -96,7 +96,8 @@ function Login({ onLogin }) {
           Iniciar sesión
         </button>
         <p className="helper-text">
-          ¿Olvidaste tu contraseña? <span className="link-text">Contacta al área de sistemas.</span>
+          ¿Olvidaste tu contraseña? <span className="link-text">
+            Contacta al área de sistemas.</span>
         </p>
       </form>
     </div>
