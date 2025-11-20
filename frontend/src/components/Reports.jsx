@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { API_BASE_URL } from '../api';
 
 function Reports({ onBack }) {
   const [data, setData] = useState([]);
 
   useEffect(() => {
-    fetch('/api/reports')
+    fetch(`${API_BASE_URL}/api/reports`)
       .then(res => res.json())
       .then(setData)
       .catch(err => console.error(err));

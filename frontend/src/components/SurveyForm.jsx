@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_BASE_URL } from '../api';
 
 function SurveyForm({ course, user, onSubmitSurvey }) {
   const [p1, setP1] = useState(0);
@@ -12,7 +13,7 @@ function SurveyForm({ course, user, onSubmitSurvey }) {
       return;
     }
     try {
-      const res = await fetch('/api/submit', {
+        const res = await fetch(`${API_BASE_URL}/api/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

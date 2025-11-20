@@ -1,15 +1,3 @@
-import axios from 'axios';
+// frontend/src/api.js
+export const API_BASE_URL = 'https://evaluacion-docente-backend.onrender.com';
 
-const api = axios.create({
-  baseURL: 'http://localhost:4000/api'
-});
-
-api.interceptors.request.use(config => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-export default api;

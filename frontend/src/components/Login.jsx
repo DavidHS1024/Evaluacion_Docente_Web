@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_BASE_URL } from '../api';
 
 function Login({ onLogin }) {
   const [code, setCode] = useState('');
@@ -9,7 +10,7 @@ function Login({ onLogin }) {
     e.preventDefault();
     setError('');
     try {
-      const res = await fetch('/api/login', {
+      const res = await fetch(`${API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code, dni })
