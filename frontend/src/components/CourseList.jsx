@@ -1,3 +1,5 @@
+import React from 'react';
+
 function CourseList({ user, onLogout, onSelectCourse, onViewReports }) {
   return (
     <div>
@@ -43,3 +45,5 @@ function CourseList({ user, onLogout, onSelectCourse, onViewReports }) {
     </div>
   );
 }
+
+export default CourseList;
