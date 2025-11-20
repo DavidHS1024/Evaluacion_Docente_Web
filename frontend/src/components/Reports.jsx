@@ -24,16 +24,20 @@ function Reports({ onBack }) {
             <div className="report-title">Curso: {report.courseName}</div>
             <div className="report-subtitle">Promedio General: {report.avg_general || '-'} / 5</div>
             <div className="report-item">
-              <span>Dominio del Tema</span>
-              <span>{report.avg_p1}</span>    
+              <span>¿El docente explica con claridad los temas del curso?</span>
+              <span>{report.avg_p1}</span>  
             </div>
             <div className="report-item">
-              <span>Claridad al Explicar</span>
+              <span>¿El docente fomenta la participación de los estudiantes?</span>
               <span>{report.avg_p2}</span>
             </div>
             <div className="report-item">
-              <span>Motivación al Estudiante</span>
-              <span>{report.avg_p3 || '-'}</span>
+              <span>¿Cumple con los horarios establecidos para las clases?</span>
+              <span>{report.avg_p3}</span>
+            </div>
+            <div className="report-item">
+              <span>¿El docente demuestra dominio del tema?</span>
+              <span>{report.avg_p4}</span>
             </div>
           </div>
         ))}

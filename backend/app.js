@@ -87,14 +87,31 @@ app.post('/api/login', (req, res) => {
 // Ruta para envío de respuestas de una encuesta docente
 app.post('/api/submit', (req, res) => {
   const { student: studentCode, courseId, answers } = req.body;
-    reloadData();
+  reloadData();
+
+  if (!studentCode || !courseId || !answers) {
+    return res.status(400).json({ success: false, message: 'Faltan datos de encuesta.' });
+  }
+
+  const requiredQuestions = ['p1', 'p2', 'p3', 'p4'];
+  const parsedAnswers = {};
+
+  for (const key of requiredQuestions) {
+    const value = Number(answers[key]);
+    if (!Number.isInteger(value) || value < 1 || value > 5) {
+      return res.status(400).json({ success: false, message: 'Las respuestas deben estar entre 1 y 5.' });
+    }
+    parsedAnswers[key] = value;
+  }
+
+  const comment = typeof answers.comment === 'string' ? answers.comment.trim() : '';
   // Verificar si ya existe una respuesta de este estudiante para ese curso (solo una encuesta por curso)
   const already = data.surveys.find(resp => resp.student === studentCode && resp.courseId === courseId);
   if (already) {
     return res.status(400).json({ success: false, message: 'Ya enviaste una evaluación para este curso.' });
   }
   // Almacenar la nueva respuesta
-  data.surveys.push({ student: studentCode, courseId, answers });
+  data.surveys.push({ student: studentCode, courseId, answers: { ...parsedAnswers, comment } });
   // Guardar en archivo JSON para persistencia
   try {
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
@@ -118,11 +135,13 @@ app.get('/api/reports', (req, res) => {
   data.surveys.forEach(resp => {
     const cid = resp.courseId;
     if (!summary[cid]) {
-      summary[cid] = { count: 0, sum_p1: 0, sum_p2: 0, comments: [] };
+      summary[cid] = { count: 0, sum_p1: 0, sum_p2: 0, sum_p3: 0, sum_p4: 0, comments: [] };
     }
     summary[cid].count += 1;
-    summary[cid].sum_p1 += resp.answers.p1;
-    summary[cid].sum_p2 += resp.answers.p2;
+    summary[cid].sum_p1 += Number(resp.answers.p1) || 0;
+    summary[cid].sum_p2 += Number(resp.answers.p2) || 0;
+    summary[cid].sum_p3 += Number(resp.answers.p3) || 0;
+    summary[cid].sum_p4 += Number(resp.answers.p4) || 0;
     if (resp.answers.comment && resp.answers.comment.trim() !== "") {
       summary[cid].comments.push(resp.answers.comment.trim());
     }
@@ -132,6 +151,9 @@ app.get('/api/reports', (req, res) => {
     const agg = summary[cid];
     const avg_p1 = agg.sum_p1 / agg.count;
     const avg_p2 = agg.sum_p2 / agg.count;
+    const avg_p3 = agg.sum_p3 / agg.count;
+    const avg_p4 = agg.sum_p4 / agg.count;
+    const avg_general = (agg.sum_p1 + agg.sum_p2 + agg.sum_p3 + agg.sum_p4) / (agg.count * 4);
     return {
       courseId: cid,
       courseName: courseInfo[cid] ? courseInfo[cid].name : cid,
@@ -139,6 +161,9 @@ app.get('/api/reports', (req, res) => {
       count: agg.count,
       avg_p1: parseFloat(avg_p1.toFixed(2)),
       avg_p2: parseFloat(avg_p2.toFixed(2)),
+      avg_p3: parseFloat(avg_p3.toFixed(2)),
+      avg_p4: parseFloat(avg_p4.toFixed(2)),
+      avg_general: parseFloat(avg_general.toFixed(2)),
       comments: agg.comments
     };
   });

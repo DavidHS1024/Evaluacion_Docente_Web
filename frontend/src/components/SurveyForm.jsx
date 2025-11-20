@@ -4,13 +4,15 @@ import { API_BASE_URL } from '../api';
 function SurveyForm({ course, user, onSubmitSurvey, onClose }) {
   const [p1, setP1] = useState(0);
   const [p2, setP2] = useState(0);
+  const [p3, setP3] = useState(0);
+  const [p4, setP4] = useState(0);
   const [comment, setComment] = useState('');
   const [error, setError] = useState('');
   const [successOpen, setSuccessOpen] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (p1 === 0 || p2 === 0) {
+    if (p1 === 0 || p2 === 0 || p3 === 0 || p4 === 0) {
       setError('Faltan campos obligatorios en encuesta.');
       return;
     }
@@ -22,7 +24,7 @@ function SurveyForm({ course, user, onSubmitSurvey, onClose }) {
         body: JSON.stringify({
           student: user.code,
           courseId: course.id,
-          answers: { p1, p2, comment }
+          answers: { p1, p2, p3, p4, comment }
         })
       });
       const data = await res.json();
@@ -81,7 +83,49 @@ function SurveyForm({ course, user, onSubmitSurvey, onClose }) {
                     name="p2"
                     value={n}
                     checked={p2 === n}
-                    onChange={() => setP2(n)}
+                  onChange={() => setP2(n)}
+                />
+                <span>{n}</span>
+              </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="question-card">
+            <div className="question-title">
+              <span className="question-number">3</span>
+              <p>¿Cumple con los horarios establecidos para las clases?</p>
+            </div>
+            <div className="scale">
+              {[1, 2, 3, 4, 5].map(n => (
+                <label key={`p3-op${n}`}>
+                  <input
+                    type="radio"
+                    name="p3"
+                    value={n}
+                    checked={p3 === n}
+                    onChange={() => setP3(n)}
+                  />
+                  <span>{n}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="question-card">
+            <div className="question-title">
+              <span className="question-number">4</span>
+              <p>¿El docente demuestra dominio del tema?</p>
+            </div>
+            <div className="scale">
+              {[1, 2, 3, 4, 5].map(n => (
+                <label key={`p4-op${n}`}>
+                  <input
+                    type="radio"
+                    name="p4"
+                    value={n}
+                    checked={p4 === n}
+                    onChange={() => setP4(n)}
                   />
                   <span>{n}</span>
                 </label>
