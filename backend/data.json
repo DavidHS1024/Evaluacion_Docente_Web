@@ -1,0 +1,23 @@
+{
+  "students": [
+    {
+      "code": "2021001",
+      "dni": "12345678",
+      "name": "Ana Perez",
+      "courses": [
+        { "id": "MAT101", "name": "Matem\u00e1tica B\u00e1sica", "teacher": "Juan Perez" },
+        { "id": "FIS101", "name": "F\u00edsica I", "teacher": "Mar\u00eda Garc\u00eda" }
+      ]
+    },
+    {
+      "code": "2021002",
+      "dni": "87654321",
+      "name": "Luis Ramirez",
+      "courses": [
+        { "id": "FIS101", "name": "F\u00edsica I", "teacher": "Mar\u00eda Garc\u00eda" },
+        { "id": "QUI101", "name": "Qu\u00edmica General", "teacher": "Carlos S\u00e1nchez" }
+      ]
+    }
+  ],
+  "surveys": []
+}
