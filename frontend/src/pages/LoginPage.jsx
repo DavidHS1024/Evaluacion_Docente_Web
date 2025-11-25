@@ -51,7 +51,7 @@ export default function LoginPage() {
               type="text"
               value={code}
               onChange={e => setCode(e.target.value)}
-              placeholder="Ej: 212500001"
+              
               required
             />
           </label>
@@ -61,7 +61,7 @@ export default function LoginPage() {
               type="password"
               value={dni}
               onChange={e => setDni(e.target.value)}
-              placeholder="Ingresa tu DNI"
+              
               required
             />
           </label>
