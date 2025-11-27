@@ -1,35 +1,34 @@
-require('dotenv').config();
-const { connectDB, sequelize } = require('./src/config/database');
-const models = require('./src/models/index');
-const express = require('express');
-const cors = require('cors');
-const fs = require('fs');
-const path = require('path');
+// backend/app.js
+import 'dotenv/config'; // Reemplaza require('dotenv').config()
+import express from 'express';
+import cors from 'cors';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { connectDB, sequelize } from './src/config/database.js'; // Nota el .js al final
+// import models from './src/models/index.js'; // Asegúrate de que tus modelos también usen export default/export
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Configuración necesaria para __dirname en ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 async function startDatabaseAndServer() {
     try {
-        // 1. Probar la conexión a la Base de Datos
         await connectDB();
-
-        // 2. Sincronizar modelos con la BD
         await sequelize.sync({ alter: true });
-        console.log('Modelos de Sequelize sincronizados con la base de datos.');
+        console.log('Modelos sincronizados.');
 
-        // <--- ¡PÉGALO AQUÍ!
-        // 3. Iniciar el servidor (Solo si la BD está lista)
         const PORT = process.env.PORT || 3000;
         app.listen(PORT, () => {
-            console.log(`Servidor backend escuchando en http://localhost:${PORT}`);
+            console.log(`Servidor escuchando en puerto ${PORT}`);
         });
-        // <--- ¡FIN DEL BLOQUE PEGADO!
-
     } catch (error) {
-        console.error('Fallo crítico al iniciar el servidor por la BD:', error);
-        process.exit(1); 
+        console.error('Error crítico:', error);
+        process.exit(1);
     }
 }
 
