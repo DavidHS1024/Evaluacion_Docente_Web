@@ -1,3 +1,6 @@
+require('dotenv').config();
+const { connectDB, sequelize } = require('./src/config/database');
+const models = require('./src/models/index');
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
@@ -6,6 +9,29 @@ const path = require('path');
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+async function startDatabaseAndServer() {
+    try {
+        // 1. Probar la conexión a la Base de Datos
+        await connectDB();
+
+        // 2. Sincronizar modelos con la BD
+        await sequelize.sync({ alter: true });
+        console.log('Modelos de Sequelize sincronizados con la base de datos.');
+
+        // <--- ¡PÉGALO AQUÍ!
+        // 3. Iniciar el servidor (Solo si la BD está lista)
+        const PORT = process.env.PORT || 3000;
+        app.listen(PORT, () => {
+            console.log(`Servidor backend escuchando en http://localhost:${PORT}`);
+        });
+        // <--- ¡FIN DEL BLOQUE PEGADO!
+
+    } catch (error) {
+        console.error('Fallo crítico al iniciar el servidor por la BD:', error);
+        process.exit(1); 
+    }
+}
 
 // Ruta absoluta al archivo de datos para evitar dependencias del directorio de ejecución
 const DATA_FILE = path.join(__dirname, 'data.json');
@@ -399,8 +425,4 @@ app.get('/teacher/my-reports', (req, res) => {
 });
 
 
-// Iniciar el servidor
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Servidor backend escuchando en http://localhost:${PORT}`);
-});
+startDatabaseAndServer();
