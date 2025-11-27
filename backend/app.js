@@ -1,13 +1,19 @@
-// backend/app.js
-import 'dotenv/config'; // Reemplaza require('dotenv').config()
+import 'dotenv/config'; 
 import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { connectDB, sequelize } from './src/config/database.js'; // Nota el .js al final
-// import models from './src/models/index.js'; // Asegúrate de que tus modelos también usen export default/export
+import { connectDB, sequelize } from './src/config/database.js';
 
+// --- AGREGAR ESTAS IMPORTACIONES ---
+// Importamos los modelos para que Sequelize sepa que existen antes de sincronizar
+import './src/models/Usuario.js';
+import './src/models/Estudiante.js';
+import './src/models/Docente.js';
+import './src/models/Administrador.js';
+import './src/models/Curso.js';
+// -----------------------------------
 const app = express();
 app.use(cors());
 app.use(express.json());
