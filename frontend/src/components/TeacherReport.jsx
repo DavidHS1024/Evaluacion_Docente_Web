@@ -25,17 +25,18 @@ const TeacherReport = ({ user, onBack }) => {
           }
         });
         if (!res.ok) {
-          throw new Error('No autorizado');
+          throw new Error('No autorizado o error del servidor');
         }
         const data = await res.json();
         setReports(data);
       } catch (err) {
+        console.error(err);
         setError('No se pudo cargar el reporte del docente.');
       } finally {
         setLoading(false);
       }
     };
-    load();
+    if (user?.dni) load();
   }, [user]);
 
   const chartData = useMemo(() => {
@@ -51,18 +52,18 @@ const TeacherReport = ({ user, onBack }) => {
     <div className="content-card">
       <h2 className="section-title">Mis reportes</h2>
       <p className="subtitle">
-        Solo ves los cursos asignados a tu DNI. Los resultados son agregados y anónimos.
+        Vista de docente: {user?.name}
       </p>
       {loading && <p>Cargando información...</p>}
       {error && <div className="error-message">{error}</div>}
-      {!loading && reports.length === 0 && <p className="helper-text">Aún no hay respuestas registradas.</p>}
+      {!loading && reports.length === 0 && <p className="helper-text">No se encontraron cursos asignados o respuestas.</p>}
 
       <div className="reports-grid">
         {reports.map((report, index) => (
           <div key={report.courseId} className="report-card">
             <div className="report-title">{report.courseName}</div>
-            <p className="report-subtitle">Participación: {report.participationRate}%</p>
-            <p className="helper-text">Estado: {report.isSurveyActive ? 'Encuesta activa' : 'Encuesta desactivada'}</p>
+            <p className="report-subtitle">Participación: {report.participationRate}% ({report.count} encuestas)</p>
+            
             <div style={{ height: 240 }}>
               <ResponsiveContainer>
                 <BarChart data={chartData[index]} margin={{ top: 10 }}>

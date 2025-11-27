@@ -1,6 +1,38 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { API_BASE_URL } from '../api';
 
 function CourseList({ user, onLogout, onStartSurvey, onViewReports }) {
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    // Si no hay código de usuario, no podemos cargar cursos
+    if (!user?.code) return;
+
+    const fetchCourses = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/student/courses`, {
+          headers: {
+            'x-student-code': user.code // Enviamos el código en la cabecera
+          }
+        });
+        
+        if (!res.ok) throw new Error('Error al cargar cursos');
+        
+        const data = await res.json();
+        setCourses(data);
+      } catch (err) {
+        console.error(err);
+        setError('No se pudieron cargar tus cursos asignados.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCourses();
+  }, [user]);
+
   return (
     <div className="content-card">
       <div className="section-header">
@@ -8,8 +40,15 @@ function CourseList({ user, onLogout, onStartSurvey, onViewReports }) {
         <p className="subtitle">Selecciona un curso para responder la encuesta.</p>
       </div>
 
+      {loading && <p className="helper-text">Cargando asignaturas...</p>}
+      {error && <div className="error-message">{error}</div>}
+      
+      {!loading && !error && courses.length === 0 && (
+        <p className="helper-text">No tienes cursos matriculados actualmente.</p>
+      )}
+
       <div className="courses-list">
-        {user.courses.map((course, index) => (
+        {courses.map((course, index) => (
           <div key={course.id} className="course-card">
             <div className="course-number">{index + 1}</div>
             <div className="course-info">

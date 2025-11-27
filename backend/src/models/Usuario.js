@@ -1,47 +1,42 @@
 import { DataTypes } from 'sequelize';
 import { sequelize } from '../config/database.js';
 
-/**
- * Define el modelo Usuario. Es la tabla base para autenticación,
- * a partir de la cual se extenderán los roles de Docente y Administrador.
- */
-
 const Usuario = sequelize.define('Usuario', {
-    id: { // Usamos 'id' estándar para la clave primaria
+    idUsuario: {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true,
-        allowNull: false,
+        field: 'idUsuario'
     },
-    // Añadimos un campo de rol para determinar los permisos
-    rol: {
-        type: DataTypes.ENUM('estudiante', 'docente', 'administrador'),
-        allowNull: false,
-        defaultValue: 'estudiante'
-    },
-    nombre: { // Convención camelCase
+    nombre: {
         type: DataTypes.STRING(100),
         allowNull: false,
+        field: 'Nombre'
     },
-    apellido: { // Convención camelCase
+    apellido: {
         type: DataTypes.STRING(100),
         allowNull: false,
+        field: 'Apellido'
     },
-    email: { // Convención camelCase
+    email: {
         type: DataTypes.STRING(100),
         allowNull: false,
-        unique: true, // Único para el login
+        unique: true,
+        field: 'Email'
     },
-    contrasenaHash: { // Convención camelCase
-        type: DataTypes.STRING(255), // Hash de la contraseña (e.g., bcrypt)
+    contrasenaHash: {
+        type: DataTypes.STRING(255),
         allowNull: false,
-        field: 'contrasena_hash' // Mapeo a snake_case en la BD si se desea
+        field: 'Contrasena_Hash'
     },
+    fechaRegistro: {
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW,
+        field: 'FechaRegistro'
+    }
 }, {
     tableName: 'Usuario',
-    freezeTableName: true, // Evita la pluralización
-    timestamps: true, // Recomendado para auditoría (createdAt, updatedAt)
-    // El campo FechaRegistro lo proporciona 'timestamps: true' por defecto como 'createdAt'
+    timestamps: false 
 });
 
 export default Usuario;

@@ -1,433 +1,357 @@
-import 'dotenv/config'; 
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import bcrypt from 'bcrypt';
 import { connectDB, sequelize } from './src/config/database.js';
 
-// --- AGREGAR ESTAS IMPORTACIONES ---
-// Importamos los modelos para que Sequelize sepa que existen antes de sincronizar
-import './src/models/Usuario.js';
-import './src/models/Estudiante.js';
-import './src/models/Docente.js';
-import './src/models/Administrador.js';
-import './src/models/Curso.js';
-// -----------------------------------
+// --- IMPORTACIÓN DE MODELOS ---
+import Usuario from './src/models/Usuario.js';
+import Estudiante from './src/models/Estudiante.js';
+import Docente from './src/models/Docente.js';
+import Administrador from './src/models/Administrador.js';
+import Curso from './src/models/Curso.js';
+import AsignacionDocente from './src/models/AsignacionDocente.js';
+import Matricula from './src/models/Matricula.js';
+import DetalleMatricula from './src/models/DetalleMatricula.js';
+import Evaluacion from './src/models/Evaluacion.js';
+import Pregunta from './src/models/Pregunta.js';
+import Respuesta from './src/models/Respuesta.js';
+
+// --- DEFINICIÓN DE RELACIONES (ASSOCIATIONS) ---
+
+// 1. Usuarios y Roles
+Usuario.hasOne(Estudiante, { foreignKey: 'idUsuario' });
+Estudiante.belongsTo(Usuario, { foreignKey: 'idUsuario' });
+
+Usuario.hasOne(Docente, { foreignKey: 'idUsuario' });
+Docente.belongsTo(Usuario, { foreignKey: 'idUsuario' });
+
+Usuario.hasOne(Administrador, { foreignKey: 'idUsuario' });
+Administrador.belongsTo(Usuario, { foreignKey: 'idUsuario' });
+
+// 2. Docente y Cursos (A través de AsignacionDocente)
+Docente.hasMany(AsignacionDocente, { foreignKey: 'docenteId' });
+AsignacionDocente.belongsTo(Docente, { foreignKey: 'docenteId' });
+
+Curso.hasMany(AsignacionDocente, { foreignKey: 'cursoId' });
+AsignacionDocente.belongsTo(Curso, { foreignKey: 'cursoId' });
+
+// 3. Matrícula y Estudiante
+Estudiante.hasMany(Matricula, { foreignKey: 'estudianteId' });
+Matricula.belongsTo(Estudiante, { foreignKey: 'estudianteId' });
+
+// 4. Detalle de Matrícula (Conecta Matrícula con la Asignación del Docente)
+Matricula.hasMany(DetalleMatricula, { foreignKey: 'matriculaId' });
+DetalleMatricula.belongsTo(Matricula, { foreignKey: 'matriculaId' });
+
+AsignacionDocente.hasMany(DetalleMatricula, { foreignKey: 'asignacionId' });
+DetalleMatricula.belongsTo(AsignacionDocente, { foreignKey: 'asignacionId' });
+
+// 5. Evaluación y Respuestas
+DetalleMatricula.hasOne(Evaluacion, { foreignKey: 'detalleMatriculaId' });
+Evaluacion.belongsTo(DetalleMatricula, { foreignKey: 'detalleMatriculaId' });
+
+Evaluacion.hasMany(Respuesta, { foreignKey: 'evaluacionId' });
+Respuesta.belongsTo(Evaluacion, { foreignKey: 'evaluacionId' });
+
+Pregunta.hasMany(Respuesta, { foreignKey: 'preguntaId' });
+Respuesta.belongsTo(Pregunta, { foreignKey: 'preguntaId' });
+
+
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Configuración necesaria para __dirname en ES Modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-async function startDatabaseAndServer() {
+// --- FUNCIÓN PARA POBLAR PREGUNTAS (SEED) ---
+async function inicializarPreguntas() {
     try {
-        await connectDB();
-        await sequelize.sync({ alter: true });
-        console.log('Modelos sincronizados.');
-
-        const PORT = process.env.PORT || 3000;
-        app.listen(PORT, () => {
-            console.log(`Servidor escuchando en puerto ${PORT}`);
-        });
+        const count = await Pregunta.count();
+        if (count === 0) {
+            console.log('⚠️ No hay preguntas en la BD. Insertando preguntas por defecto...');
+            await Pregunta.bulkCreate([
+                { idPregunta: 1, textoPregunta: '¿El docente explica con claridad los temas del curso?' },
+                { idPregunta: 2, textoPregunta: '¿El docente fomenta la participación de los estudiantes?' },
+                { idPregunta: 3, textoPregunta: '¿Cumple con los horarios establecidos para las clases?' },
+                { idPregunta: 4, textoPregunta: '¿El docente demuestra dominio del tema?' },
+                { idPregunta: 5, textoPregunta: 'Comentarios adicionales' }
+            ]);
+            console.log('✅ Preguntas insertadas correctamente.');
+        }
     } catch (error) {
-        console.error('Error crítico:', error);
-        process.exit(1);
+        console.error('Error al inicializar preguntas:', error);
     }
 }
 
-// Ruta absoluta al archivo de datos para evitar dependencias del directorio de ejecución
-const DATA_FILE = path.join(__dirname, 'data.json');
+// --- INICIO DEL SERVIDOR ---
+async function startServer() {
+    try {
+        await connectDB();
+        // Sincronizar modelos: 'alter: true' actualiza las tablas si hay cambios, sin borrar datos.
+        await sequelize.sync({ alter: true });
+        console.log('✅ Base de datos MySQL conectada y modelos sincronizados.');
 
-// Cargar datos iniciales (simulando la base de datos)
-let data = JSON.parse(fs.readFileSync(DATA_FILE));
+        // Asegurar que existan preguntas
+        await inicializarPreguntas();
 
-// Permite refrescar los datos cuando el archivo JSON se actualiza manualmente
-const reloadData = () => {
-  try {
-    data = JSON.parse(fs.readFileSync(DATA_FILE));
-  } catch (err) {
-    console.error('No se pudo recargar data.json', err);
-  }
-};
-
-const persistData = () => {
-  try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-  } catch (err) {
-    console.error('Error al guardar datos:', err);
-  }
-};
-
-const getCoursesIndex = () => {
-  const index = {};
-  data.students.forEach(student => {
-    student.courses.forEach(course => {
-      if (!index[course.id]) {
-        index[course.id] = {
-          id: course.id,
-          name: course.name,
-          teacher: course.teacher,
-          code: course.code,
-          isSurveyActive: course.isSurveyActive !== false,
-          enrolled: 0
-        };
-      }
-      index[course.id].enrolled += 1;
-    });
-  });
-
-  data.professors?.forEach(prof => {
-    prof.courses.forEach(course => {
-      if (!index[course.id]) {
-        index[course.id] = {
-          id: course.id,
-          name: course.name,
-          teacher: prof.name,
-          code: course.code,
-          isSurveyActive: course.isSurveyActive !== false,
-          enrolled: 0
-        };
-      } else if (!index[course.id].teacher) {
-        index[course.id].teacher = prof.name;
-      }
-      index[course.id].isSurveyActive = course.isSurveyActive !== false;
-    });
-  });
-
-  return index;
-};
-
-const isWithinEvaluationPeriod = (period) => {
-  if (!period || !period.startDate || !period.endDate) return false;
-  const today = new Date();
-  const start = new Date(period.startDate);
-  const end = new Date(period.endDate);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
-  return today >= start && today <= end;
-};
-
-// Ruta de autenticación (login) para estudiantes, profesores y administradores
-app.post('/api/login', (req, res) => {
-  const { role = 'student', code, dni, password } = req.body;
-
-  // Siempre usar la versión más reciente del archivo para reflejar reemplazos manuales
-  reloadData();
-
-  if (role === 'student') {
-    const student = data.students.find(s => s.code === code);
-    if (!student) {
-      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+        const PORT = process.env.PORT || 3000;
+        app.listen(PORT, () => {
+            console.log(`🚀 Servidor backend escuchando en puerto ${PORT}`);
+        });
+    } catch (error) {
+        console.error('❌ Error crítico al iniciar servidor:', error);
     }
-    if (student.dni !== password) {
-      return res.status(401).json({ success: false, message: 'DNI incorrecto' });
+}
+
+// --- RUTAS API ---
+
+// 1. LOGIN
+app.post('/api/login', async (req, res) => {
+    const { role, code, dni, password } = req.body;
+
+    try {
+        let roleData;
+
+        // Buscar según el rol
+        if (role === 'student') {
+            roleData = await Estudiante.findOne({
+                where: { codigoEstudiante: code },
+                include: [{ model: Usuario }]
+            });
+        } else if (role === 'professor') {
+            roleData = await Docente.findOne({
+                where: { codigoDocente: dni },
+                include: [{ model: Usuario }]
+            });
+        } else if (role === 'admin') {
+            // Para admin, asumimos login por Email o DNI si lo agregaste al modelo Usuario.
+            // Aquí buscamos un usuario administrador genérico o vinculado
+            // Ajusta esta lógica según cómo registres admins en tu BD
+            const usuarioAdmin = await Usuario.findOne({ where: { email: dni } }); // Usando email como ejemplo temporal
+            if (usuarioAdmin) {
+                roleData = await Administrador.findOne({ where: { idUsuario: usuarioAdmin.idUsuario }, include: [Usuario] });
+            }
+        }
+
+        if (!roleData || !roleData.Usuario) {
+            return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+        }
+
+        // Verificar contraseña
+        const match = await bcrypt.compare(password, roleData.Usuario.contrasenaHash);
+        if (!match) {
+            return res.status(401).json({ success: false, message: 'Credenciales inválidas' });
+        }
+
+        // Responder con datos para el frontend
+        res.json({
+            success: true,
+            user: {
+                role,
+                code: role === 'student' ? roleData.codigoEstudiante : null,
+                dni: role === 'professor' ? roleData.codigoDocente : null,
+                name: `${roleData.Usuario.nombre} ${roleData.Usuario.apellido}`,
+                idUsuario: roleData.Usuario.idUsuario
+            }
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Error en el servidor' });
     }
-
-    // Construir objeto de respuesta sin datos sensibles y con estado de encuestas por curso
-    const studentData = {
-      role: 'student',
-      code: student.code,
-      name: student.name,
-      courses: student.courses.map(course => {
-        // verificar si este estudiante ya respondió la encuesta de este curso
-        const responded = data.surveys.some(resp => resp.student === student.code && resp.courseId === course.id);
-        return { ...course, responded };
-      })
-    };
-
-    return res.json({ success: true, user: studentData });
-  }
-
-  if (role === 'professor') {
-    const professor = data.professors.find(p => p.dni === dni);
-    if (!professor) {
-      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
-    }
-    if (professor.password !== password) {
-      return res.status(401).json({ success: false, message: 'DNI incorrecto' });
-    }
-
-    const professorData = {
-      role: 'professor',
-      dni: professor.dni,
-      name: professor.name,
-      courses: professor.courses
-    };
-
-    return res.json({ success: true, user: professorData });
-  }
-
-  if (role === 'admin') {
-    const admin = data.admins?.find(a => a.dni === dni);
-    if (!admin) {
-      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
-    }
-    if (admin.password !== password) {
-      return res.status(401).json({ success: false, message: 'DNI incorrecto' });
-    }
-
-    const adminData = {
-      role: 'admin',
-      dni: admin.dni,
-      name: admin.name
-    };
-
-    return res.json({ success: true, user: adminData });
-  }
-
-  return res.status(400).json({ success: false, message: 'Rol no soportado' });
 });
 
-// Obtener el periodo de evaluación activo
+// 2. OBTENER CURSOS DEL ESTUDIANTE
+app.get('/student/courses', async (req, res) => {
+    // El frontend DEBE enviar este header (lo configuraremos en el paso 5)
+    const studentCode = req.headers['x-student-code'];
+
+    if (!studentCode) {
+        return res.status(400).json({ message: 'Falta código de estudiante (header x-student-code)' });
+    }
+
+    try {
+        const estudiante = await Estudiante.findOne({ where: { codigoEstudiante: studentCode } });
+        if (!estudiante) return res.status(404).json({ message: 'Estudiante no encontrado' });
+
+        // Buscamos matrículas -> detalles -> asignación -> curso y docente
+        const matriculas = await Matricula.findAll({
+            where: { estudianteId: estudiante.idUsuario },
+            include: [{
+                model: DetalleMatricula,
+                include: [{
+                    model: AsignacionDocente,
+                    include: [
+                        { model: Curso },
+                        { model: Docente, include: [Usuario] }
+                    ]
+                }, {
+                    model: Evaluacion, // Incluimos evaluación para saber si ya respondió
+                    required: false
+                }]
+            }]
+        });
+
+        let courses = [];
+        matriculas.forEach(mat => {
+            mat.DetalleMatriculas.forEach(det => {
+                const asig = det.AsignacionDocente;
+                courses.push({
+                    id: asig.cursoId, // ID del Curso (para mostrar)
+                    detalleId: det.idDetalleMatricula, // ID Clave para enviar la encuesta
+                    name: asig.Curso.nombreCurso,
+                    code: asig.Curso.codigoCurso,
+                    teacher: `${asig.Docente.Usuario.nombre} ${asig.Docente.Usuario.apellido}`,
+                    responded: !!det.Evaluacion, // true si existe evaluación
+                    isSurveyActive: true // Aquí podrías validar fechas si lo deseas
+                });
+            });
+        });
+
+        res.json(courses);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error al obtener cursos' });
+    }
+});
+
+// 3. ENVIAR ENCUESTA
+app.post('/api/submit', async (req, res) => {
+    const { student: studentCode, courseId, answers } = req.body;
+
+    try {
+        // 1. Identificar al estudiante
+        const estudiante = await Estudiante.findOne({ where: { codigoEstudiante: studentCode } });
+        if (!estudiante) return res.status(404).json({ message: 'Estudiante inválido' });
+
+        // 2. Encontrar el registro exacto de matrícula para este curso
+        // Buscamos un DetalleMatricula que pertenezca a una Matricula de este estudiante
+        // y cuya AsignacionDocente corresponda al curso enviado.
+        const detalle = await DetalleMatricula.findOne({
+            include: [
+                {
+                    model: Matricula,
+                    where: { estudianteId: estudiante.idUsuario }
+                },
+                {
+                    model: AsignacionDocente,
+                    where: { cursoId: courseId }
+                }
+            ]
+        });
+
+        if (!detalle) {
+            return res.status(404).json({ success: false, message: 'No estás matriculado en este curso' });
+        }
+
+        // 3. Verificar si ya respondió
+        const existing = await Evaluacion.findOne({ where: { detalleMatriculaId: detalle.idDetalleMatricula } });
+        if (existing) {
+            return res.status(400).json({ success: false, message: 'Ya enviaste esta encuesta previamente' });
+        }
+
+        // 4. Guardar Evaluación y Respuestas (Transacción para asegurar integridad)
+        await sequelize.transaction(async (t) => {
+            // Crear cabecera de evaluación
+            const nuevaEvaluacion = await Evaluacion.create({
+                detalleMatriculaId: detalle.idDetalleMatricula
+            }, { transaction: t });
+
+            // Preparar respuestas
+            const respuestasData = [
+                { preguntaId: 1, valorNumerico: Number(answers.p1) },
+                { preguntaId: 2, valorNumerico: Number(answers.p2) },
+                { preguntaId: 3, valorNumerico: Number(answers.p3) },
+                { preguntaId: 4, valorNumerico: Number(answers.p4) },
+                { preguntaId: 5, valorTexto: answers.comment || '' }
+            ];
+
+            const respuestasFinales = respuestasData.map(r => ({
+                ...r,
+                evaluacionId: nuevaEvaluacion.idEvaluacion
+            }));
+
+            // Insertar todas las respuestas
+            await Respuesta.bulkCreate(respuestasFinales, { transaction: t });
+        });
+
+        res.json({ success: true, message: 'Encuesta guardada exitosamente' });
+
+    } catch (err) {
+        console.error('Error al guardar encuesta:', err);
+        res.status(500).json({ success: false, message: 'Error interno al guardar' });
+    }
+});
+
+// 3.5. REPORTE DEL DOCENTE
+app.get('/teacher/my-reports', async (req, res) => {
+    const dni = req.headers['x-teacher-dni'];
+    if (!dni) return res.status(401).json({ message: 'Falta DNI' });
+
+    try {
+        const docente = await Docente.findOne({ where: { codigoDocente: dni } });
+        if (!docente) return res.status(403).json({ message: 'Docente no encontrado' });
+
+        // Obtener cursos asignados a este docente
+        const asignaciones = await AsignacionDocente.findAll({
+            where: { docenteId: docente.idUsuario },
+            include: [
+                { model: Curso },
+                { 
+                    model: DetalleMatricula,
+                    include: [{ model: Evaluacion, include: [Respuesta] }]
+                }
+            ]
+        });
+
+        const reports = asignaciones.map(asig => {
+            let totalP1 = 0, totalP2 = 0, totalP3 = 0, totalP4 = 0;
+            let count = 0;
+            let enrolled = asig.DetalleMatriculas.length;
+
+            asig.DetalleMatriculas.forEach(det => {
+                if (det.Evaluacion) {
+                    count++;
+                    det.Evaluacion.Respuestas.forEach(resp => {
+                        if (resp.preguntaId === 1) totalP1 += resp.valorNumerico;
+                        if (resp.preguntaId === 2) totalP2 += resp.valorNumerico;
+                        if (resp.preguntaId === 3) totalP3 += resp.valorNumerico;
+                        if (resp.preguntaId === 4) totalP4 += resp.valorNumerico;
+                    });
+                }
+            });
+
+            return {
+                courseId: asig.cursoId,
+                courseName: asig.Curso.nombreCurso,
+                participationRate: enrolled ? ((count / enrolled) * 100).toFixed(1) : 0,
+                count,
+                avg_p1: count ? (totalP1 / count) : 0,
+                avg_p2: count ? (totalP2 / count) : 0,
+                avg_p3: count ? (totalP3 / count) : 0,
+                avg_p4: count ? (totalP4 / count) : 0
+            };
+        });
+
+        res.json(reports);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error al generar reporte' });
+    }
+});
+
+// 4. PERIODO DE EVALUACIÓN (Endpoint simple para que el frontend no falle)
 app.get('/api/period', (req, res) => {
-  reloadData();
-  const evaluationPeriod = data.evaluationPeriod || { isActive: false };
-  return res.json(evaluationPeriod);
-});
-
-// Actualizar el periodo de evaluación (solo admin simulado)
-app.post('/api/period', (req, res) => {
-  const { role, startDate, endDate, isActive } = req.body;
-  reloadData();
-
-  if (role !== 'admin') {
-    return res.status(403).json({ success: false, message: 'No autorizado' });
-  }
-
-  const updatedPeriod = {
-    startDate,
-    endDate,
-    isActive: Boolean(isActive)
-  };
-
-  data.evaluationPeriod = updatedPeriod;
-
-  try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-  } catch (err) {
-    console.error('Error al guardar el periodo de evaluación', err);
-    return res.status(500).json({ success: false, message: 'No se pudo actualizar el periodo' });
-  }
-
-  return res.json({ success: true, evaluationPeriod: updatedPeriod });
-});
-
-// Listar todos los cursos con su estado de encuesta
-app.get('/admin/courses', (req, res) => {
-  reloadData();
-  const courseIndex = getCoursesIndex();
-  const courses = Object.values(courseIndex).map(c => ({
-    id: c.id,
-    name: c.name,
-    teacher: c.teacher,
-    code: c.code,
-    isSurveyActive: c.isSurveyActive,
-    enrolled: c.enrolled
-  }));
-  res.json(courses);
-});
-
-// Activar/desactivar encuestas por curso
-app.post('/admin/course-status', (req, res) => {
-  const { courseId, isActive } = req.body;
-  reloadData();
-
-  if (!courseId) {
-    return res.status(400).json({ success: false, message: 'courseId es obligatorio' });
-  }
-
-  const newStatus = Boolean(isActive);
-  let updated = false;
-
-  data.students.forEach(student => {
-    student.courses.forEach(course => {
-      if (course.id === courseId) {
-        course.isSurveyActive = newStatus;
-        updated = true;
-      }
+    // En una versión futura, esto vendría de una tabla 'Configuracion'
+    res.json({
+        startDate: "2024-01-01",
+        endDate: "2025-12-31",
+        isActive: true
     });
-  });
-
-  data.professors?.forEach(prof => {
-    prof.courses.forEach(course => {
-      if (course.id === courseId) {
-        course.isSurveyActive = newStatus;
-        updated = true;
-      }
-    });
-  });
-
-  if (!updated) {
-    return res.status(404).json({ success: false, message: 'Curso no encontrado' });
-  }
-
-  persistData();
-
-  return res.json({ success: true, courseId, isSurveyActive: newStatus });
 });
 
-// Ruta para envío de respuestas de una encuesta docente
-app.post('/api/submit', (req, res) => {
-  const { student: studentCode, courseId, answers } = req.body;
-  reloadData();
-
-  const evaluationPeriod = data.evaluationPeriod;
-  if (!evaluationPeriod || evaluationPeriod.isActive === false) {
-    return res.status(403).json({ success: false, message: 'El periodo de evaluación está cerrado' });
-  }
-
-  if (!isWithinEvaluationPeriod(evaluationPeriod)) {
-    return res.status(403).json({ success: false, message: 'El periodo de evaluación está cerrado' });
-  }
-
-  if (!studentCode || !courseId || !answers) {
-    return res.status(400).json({ success: false, message: 'Faltan datos de encuesta.' });
-  }
-
-  const requiredQuestions = ['p1', 'p2', 'p3', 'p4'];
-  const parsedAnswers = {};
-
-  const coursesIndex = getCoursesIndex();
-  const course = coursesIndex[courseId];
-  if (!course) {
-    return res.status(404).json({ success: false, message: 'Curso no encontrado' });
-  }
-
-  if (course.isSurveyActive === false) {
-    return res.status(403).json({ success: false, message: 'La encuesta para este curso está desactivada' });
-  }
-
-  for (const key of requiredQuestions) {
-    const value = Number(answers[key]);
-    if (!Number.isInteger(value) || value < 1 || value > 5) {
-      return res.status(400).json({ success: false, message: 'Las respuestas deben estar entre 1 y 5.' });
-    }
-    parsedAnswers[key] = value;
-  }
-
-  const comment = typeof answers.comment === 'string' ? answers.comment.trim() : '';
-  // Verificar si ya existe una respuesta de este estudiante para ese curso (solo una encuesta por curso)
-  const already = data.surveys.find(resp => resp.student === studentCode && resp.courseId === courseId);
-  if (already) {
-    return res.status(400).json({ success: false, message: 'Ya enviaste una evaluación para este curso.' });
-  }
-  // Almacenar la nueva respuesta
-  data.surveys.push({ student: studentCode, courseId, answers: { ...parsedAnswers, comment } });
-  // Guardar en archivo JSON para persistencia
-  persistData();
-  res.json({ success: true, message: 'Encuesta guardada exitosamente' });
+// Endpoint de prueba para ver si el server vive
+app.get('/', (req, res) => {
+    res.send('Servidor Backend Funcionando 🚀');
 });
 
-// Ruta para obtener reportes agregados de las evaluaciones
-app.get('/api/reports', (req, res) => {
-  reloadData();
-  const courseInfo = getCoursesIndex();
-  const summary = {};
-
-  data.surveys.forEach(resp => {
-    const { courseId: cid, answers } = resp;
-    if (!summary[cid]) {
-      summary[cid] = { count: 0, sum_p1: 0, sum_p2: 0, sum_p3: 0, sum_p4: 0, comments: [] };
-    }
-    summary[cid].count += 1;
-    summary[cid].sum_p1 += Number(answers.p1) || 0;
-    summary[cid].sum_p2 += Number(answers.p2) || 0;
-    summary[cid].sum_p3 += Number(answers.p3) || 0;
-    summary[cid].sum_p4 += Number(answers.p4) || 0;
-    const sanitizedComment = typeof answers.comment === 'string' ? answers.comment.trim() : '';
-    if (sanitizedComment !== '') {
-      summary[cid].comments.push(sanitizedComment);
-    }
-  });
- 
-  const reportData = Object.keys(courseInfo).map(cid => {
-    const agg = summary[cid] || { count: 0, sum_p1: 0, sum_p2: 0, sum_p3: 0, sum_p4: 0, comments: [] };
-    const count = agg.count;
-    const avg_p1 = count ? agg.sum_p1 / count : 0;
-    const avg_p2 = count ? agg.sum_p2 / count : 0;
-    const avg_p3 = count ? agg.sum_p3 / count : 0;
-    const avg_p4 = count ? agg.sum_p4 / count : 0;
-    const avg_general = count ? (agg.sum_p1 + agg.sum_p2 + agg.sum_p3 + agg.sum_p4) / (count * 4) : 0;
-    const course = courseInfo[cid];
-    return {
-      courseId: cid,
-      courseName: course?.name || cid,
-      teacher: course?.teacher || '',
-      code: course?.code,
-      count,
-      enrolled: course?.enrolled || 0,
-      participationRate: course?.enrolled ? parseFloat(((count / course.enrolled) * 100).toFixed(2)) : 0,
-      avg_p1: parseFloat(avg_p1.toFixed(2)),
-      avg_p2: parseFloat(avg_p2.toFixed(2)),
-      avg_p3: parseFloat(avg_p3.toFixed(2)),
-      avg_p4: parseFloat(avg_p4.toFixed(2)),
-      avg_general: parseFloat(avg_general.toFixed(2)),
-      comments: agg.comments,
-      isSurveyActive: course?.isSurveyActive !== false
-    };
-  });
-  res.json(reportData);
-});
-
-// Reportes filtrados para docentes autenticados
-app.get('/teacher/my-reports', (req, res) => {
-  reloadData();
-  const dni = req.headers['x-teacher-dni'] || req.query.dni;
-  if (!dni) {
-    return res.status(401).json({ success: false, message: 'DNI requerido' });
-  }
-
-  const professor = data.professors.find(p => p.dni === dni);
-  if (!professor) {
-    return res.status(403).json({ success: false, message: 'Docente no autorizado' });
-  }
-
-  const coursesIndex = getCoursesIndex();
-  const allowedCourseIds = new Set(professor.courses.map(c => c.id));
-  const summary = {};
-
-  data.surveys.forEach(resp => {
-    if (!allowedCourseIds.has(resp.courseId)) return;
-    const { courseId: cid, answers } = resp;
-    if (!summary[cid]) {
-      summary[cid] = { count: 0, sum_p1: 0, sum_p2: 0, sum_p3: 0, sum_p4: 0 };
-    }
-    summary[cid].count += 1;
-    summary[cid].sum_p1 += Number(answers.p1) || 0;
-    summary[cid].sum_p2 += Number(answers.p2) || 0;
-    summary[cid].sum_p3 += Number(answers.p3) || 0;
-    summary[cid].sum_p4 += Number(answers.p4) || 0;
-  });
-
-  const reports = Array.from(allowedCourseIds).map(cid => {
-    const course = coursesIndex[cid];
-    const agg = summary[cid] || { count: 0, sum_p1: 0, sum_p2: 0, sum_p3: 0, sum_p4: 0 };
-    const count = agg.count;
-    const avg_p1 = count ? agg.sum_p1 / count : 0;
-    const avg_p2 = count ? agg.sum_p2 / count : 0;
-    const avg_p3 = count ? agg.sum_p3 / count : 0;
-    const avg_p4 = count ? agg.sum_p4 / count : 0;
-    const avg_general = count ? (agg.sum_p1 + agg.sum_p2 + agg.sum_p3 + agg.sum_p4) / (count * 4) : 0;
-    return {
-      courseId: cid,
-      courseName: course?.name || cid,
-      teacher: professor.name,
-      count,
-      enrolled: course?.enrolled || 0,
-      participationRate: course?.enrolled ? parseFloat(((count / course.enrolled) * 100).toFixed(2)) : 0,
-      avg_p1: parseFloat(avg_p1.toFixed(2)),
-      avg_p2: parseFloat(avg_p2.toFixed(2)),
-      avg_p3: parseFloat(avg_p3.toFixed(2)),
-      avg_p4: parseFloat(avg_p4.toFixed(2)),
-      avg_general: parseFloat(avg_general.toFixed(2)),
-      isSurveyActive: course?.isSurveyActive !== false
-    };
-  });
-
-  return res.json(reports);
-});
-
-
-startDatabaseAndServer();
+startServer();
