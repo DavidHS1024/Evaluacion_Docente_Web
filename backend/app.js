@@ -87,7 +87,7 @@ async function startServer() {
     try {
         await connectDB();
         // Sincronizar modelos: 'alter: true' actualiza las tablas si hay cambios, sin borrar datos.
-        await sequelize.sync({ alter: true });
+        await sequelize.sync({ alter: false });
         console.log('✅ Base de datos MySQL conectada y modelos sincronizados.');
 
         // Asegurar que existan preguntas
