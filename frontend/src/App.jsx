@@ -52,15 +52,13 @@ function App() {
     setPage('survey');
   };
 
+  // --- CORRECCIÓN AQUÍ ---
   const submitSurvey = (courseId) => {
-    setUser(prevUser => {
-      if (!prevUser) return prevUser;
-      const updatedCourses = prevUser.courses.map(c =>
-        c.id === courseId ? { ...c, responded: true } : c
-      );
-      return { ...prevUser, courses: updatedCourses };
-    });
+    // Ya no hacemos nada aquí. 
+    // La lista de cursos se actualizará sola al volver a cargar CourseList.
+    console.log("Encuesta enviada para el curso", courseId);
   };
+  // -----------------------
 
   const goBackToCourses = () => {
     setCurrentCourse(null);
